@@ -180,6 +180,9 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         loadRpgData(); // Quan trọng: Nạp lại dữ liệu mới nhất từ SharedPreferences
         updateUI_RPG();
+        if (searchView != null) {
+            searchView.clearFocus();
+        }
     }
 
     private void loadRpgData() {

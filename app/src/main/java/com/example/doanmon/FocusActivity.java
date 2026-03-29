@@ -90,10 +90,10 @@ public class FocusActivity extends AppCompatActivity {
                 isFocusing = false;
                 int gainedExp = initialMinutes * 2;
                 updateExp(gainedExp);
-                
+
                 tvCountdown.setText("Hoàn thành!");
                 Toast.makeText(FocusActivity.this, "Tuyệt vời! Bạn nhận được " + gainedExp + " XP.", Toast.LENGTH_LONG).show();
-                
+
                 stopLockTask();
                 finish();
             }
