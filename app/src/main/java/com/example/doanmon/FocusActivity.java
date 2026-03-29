@@ -1,11 +1,13 @@
 package com.example.doanmon;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -59,6 +61,8 @@ public class FocusActivity extends AppCompatActivity {
             return;
         }
 
+        hideKeyboard();
+
         initialMinutes = Integer.parseInt(input);
         timeLeftInMillis = initialMinutes * 60000L;
 
@@ -76,7 +80,18 @@ public class FocusActivity extends AppCompatActivity {
         startCountDown();
     }
 
+    private void hideKeyboard() {
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            }
+        }
+    }
+
     private void startCountDown() {
+        if (countDownTimer != null) countDownTimer.cancel();
         countDownTimer = new CountDownTimer(timeLeftInMillis, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -90,11 +105,11 @@ public class FocusActivity extends AppCompatActivity {
                 isFocusing = false;
                 int gainedExp = initialMinutes * 2;
                 updateExp(gainedExp);
-
+                
                 tvCountdown.setText("Hoàn thành!");
                 Toast.makeText(FocusActivity.this, "Tuyệt vời! Bạn nhận được " + gainedExp + " XP.", Toast.LENGTH_LONG).show();
-
-                stopLockTask();
+                
+                stopLockTaskSafe();
                 finish();
             }
         }.start();
@@ -106,7 +121,6 @@ public class FocusActivity extends AppCompatActivity {
         
         currentExp += amount;
         
-        // Logic kiểm tra lên cấp (giống MainActivity)
         while (currentExp >= currentLevel * 100) {
             currentExp -= currentLevel * 100;
             currentLevel++;
@@ -134,24 +148,38 @@ public class FocusActivity extends AppCompatActivity {
                 .setTitle("Thoát chế độ tập trung?")
                 .setMessage("Nếu thoát ngay bây giờ, bạn sẽ bị trừ " + penaltyExp + " XP. Bạn chắc chắn chứ?")
                 .setPositiveButton("Thoát (Bị trừ XP)", (dialog, which) -> {
+                    isFocusing = false; // Đánh dấu là đã thoát chủ động
                     if (countDownTimer != null) countDownTimer.cancel();
                     updateExp(-penaltyExp);
                     Toast.makeText(this, "Bạn đã bị trừ " + penaltyExp + " XP do bỏ dở tập trung.", Toast.LENGTH_SHORT).show();
-                    try {
-                        stopLockTask();
-                    } catch (Exception e) {}
+                    stopLockTaskSafe();
                     finish();
                 })
                 .setNegativeButton("Tiếp tục tập trung", null)
                 .show();
     }
 
-    @Override
-    protected void onUserLeaveHint() {
-        if (isFocusing) {
-            Toast.makeText(this, "Đừng thoát! Bạn sẽ bị phạt nếu không hoàn thành.", Toast.LENGTH_SHORT).show();
+    private void stopLockTaskSafe() {
+        try {
+            stopLockTask();
+        } catch (Exception e) {
+            // Đã dừng hoặc không trong chế độ ghim
         }
-        super.onUserLeaveHint();
+    }
+
+
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Nếu người dùng bằng cách nào đó thoát ra ngoài (Home/Swipe) khi đang tập trung
+        if (isFocusing) {
+            isFocusing = false;
+            if (countDownTimer != null) countDownTimer.cancel();
+            updateExp(-(initialMinutes * 1)); // Phạt XP
+            stopLockTaskSafe(); // Gỡ ghim
+            finish(); // Đóng Activity để khi vào lại sẽ bắt đầu mới
+        }
     }
 
     @Override
